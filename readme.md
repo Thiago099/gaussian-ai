@@ -1,5 +1,6 @@
 This is a artificial intelligence that instead of gradient descent, it uses Gaussian elimination.
 
+
 you can install it by
 ```text
 npm i gaussian-ai
