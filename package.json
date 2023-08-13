@@ -1,0 +1,12 @@
+{
+  "name": "gaussian-ai",
+  "version": "1.0.0",
+  "description": "",
+  "main": "gaussian_ai.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "GNU v3.0",
+  "type": "module"
+}
