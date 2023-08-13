@@ -12,7 +12,7 @@ import GaussianAI from 'gaussian-ai'
 // Example of rule to fit
 // only 0s and 1s
 // if the last input is 0 return the first two inputs
-// otherwise reverse them 
+// Otherwise, reverse them
 
 const x = [
     [1,0,0],
