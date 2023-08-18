@@ -1,25 +1,38 @@
 import { train_epoch } from "./src/train.js";
-import { sample_error,predict } from "./src/predict.js";
+import { sample_error_prediction,predict } from "./src/predict.js";
 import { epsilon } from "./src/utils.js";
 import { preProcessingList } from "./src/pre_processing.js";
 export default GaussianAI
 function GaussianAI(x,y,epochs)
 {
   var result = new AI(x,y);
+  const baseLayer = layer(x,y,epochs, [])
+
+  console.log(baseLayer.model[0].error)
+  console.log(y)
+
+  for(const item of baseLayer.model)
+  {
+    console.log(layer(item.prediction, y, epochs).model[0].error)
+  }
+  result.model = baseLayer.model
+  return result
+}
+function layer(x,y, epochs)
+{
   var model = new Array(y[0].length).fill(null)
   for(const preProcessing of preProcessingList)
   {
     var localX = x.map(preProcessing);
-    
+
     for(const index in y[0])
     {
       var localY = y.map(item => [item[index]])
 
-
       for(var i = 0; i < epochs; i++)
       {
         var weights = train_epoch(localX, localY)
-        const error = sample_error(localX, localY, weights)
+        const {error,prediction} = sample_error_prediction(localX, localY, weights)
   
         if(model[index] == null || error < model[index].error)
         {
@@ -30,12 +43,12 @@ function GaussianAI(x,y,epochs)
           model[index].weights = weights
           model[index].preProcessing = preProcessing
           model[index].error = error
+          model[index].prediction = prediction
         }
       }
     }
   }
-  result.model = model
-  return result
+  return {model, error: model.reduce((prev, current)=>prev+current.error, 0) / y[0].length}
 }
 class AI
 {
