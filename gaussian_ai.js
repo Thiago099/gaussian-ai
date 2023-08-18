@@ -2,49 +2,99 @@ import { train_epoch } from "./src/train.js";
 import { sample_error_prediction,predict } from "./src/predict.js";
 import { epsilon } from "./src/utils.js";
 import { preProcessingList } from "./src/pre_processing.js";
+
+import {combine,buildMap} from './src/combine.js'
+
 export default GaussianAI
 function GaussianAI(x,y,epochs)
 {
   var result = new AI(x,y);
+
   const baseLayer = layer(x,y,epochs, [])
 
-  console.log(baseLayer.model[0].error)
-  console.log(y)
+  // console.log(baseLayer.model[0].error)
+  // console.log(y)
 
-  for(const item of baseLayer.model)
+  const processed = []
+  for(const preProcessing of preProcessingList)
   {
-    console.log(layer(item.prediction, y, epochs).model[0].error)
+    processed.push({fn:preProcessing, value:x.map(preProcessing)});
   }
-  result.model = baseLayer.model
+
+  const processedBatch = batch(processed)
+
+
+  const best = y[0].map(x=>{return{
+    error: 99999
+  }})
+
+  for(const index in processedBatch.data[0])
+  {
+    const current = processedBatch.data.map(x=>x[index].value)
+    const currentTraining = layer(current, y, epochs)
+    for(const mindex in currentTraining.model)
+    {
+      const model = currentTraining.model[mindex]
+      if(model.error < best[mindex].error)
+      {
+        best[mindex].error = model.error
+        best[mindex].weights = model.weights
+        best[mindex].map = processedBatch.data[0][index].map
+      }
+    }
+    // console.log(currentTraining)
+    // if(currentTraining.error < best.error)
+    // {
+    //   best.error = currentTraining.error
+    //   best.weights = currentTraining.model.map(x=>x.weights)
+    //   best.map = processedBatch.data[0][index].map
+    // }
+  }
+  console.log(JSON.stringify(best,null,4))
+  // console.log(processed.map(x=>x.fn))
+  result.model = {
+    data: best,
+    fn:processed.map(x=>x.fn)
+  }
+  return result
+}
+function batch(collection)
+{
+  const result = {}
+  result.functions = collection.map(x=>x.fn)
+  result.data = []
+  const map = buildMap(collection.map(x=>x.value[0].length))
+
+  for(var i = 0; i< collection[0].value.length; i++)
+  {
+    const current = collection.map(x=>x.value[i])
+    const combined = combine(map, current)
+    result.data.push(combined)
+  }
   return result
 }
 function layer(x,y, epochs)
 {
   var model = new Array(y[0].length).fill(null)
-  for(const preProcessing of preProcessingList)
+
+  for(const index in y[0])
   {
-    var localX = x.map(preProcessing);
+    var localY = y.map(item => [item[index]])
 
-    for(const index in y[0])
+    for(var i = 0; i < epochs; i++)
     {
-      var localY = y.map(item => [item[index]])
+      var weights = train_epoch(x, localY)
+      const {error,prediction} = sample_error_prediction(x, localY, weights)
 
-      for(var i = 0; i < epochs; i++)
+      if(model[index] == null || error < model[index].error)
       {
-        var weights = train_epoch(localX, localY)
-        const {error,prediction} = sample_error_prediction(localX, localY, weights)
-  
-        if(model[index] == null || error < model[index].error)
+        if(model[index] == null)
         {
-          if(model[index] == null)
-          {
-            model[index] = {}
-          }
-          model[index].weights = weights
-          model[index].preProcessing = preProcessing
-          model[index].error = error
-          model[index].prediction = prediction
+          model[index] = {}
         }
+        model[index].weights = weights
+        model[index].error = error
+        model[index].prediction = prediction
       }
     }
   }
@@ -62,9 +112,16 @@ class AI
     return x.map(x=>
       {
         const result = []
-        for(const { weights, preProcessing } of this.model)
+
+        let all = []
+        for(const item of this.model.fn)
         {
-          result.push(predict(preProcessing(x),weights))
+          all.push(item(x))
+        }
+
+        for(const { weights, map } of this.model.data)
+        {
+          result.push(predict(map.map((x,i)=>all[x][i]),weights))
         }
         return result
       }
